@@ -1,10 +1,14 @@
 library(tidyverse)
 library(scales)
 library(stringr)
+library(broom)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 source(".//helper.R")
+source(".//stats.R")
+source(".//transforms.R")
+source(".//model.R")
 
 # define some global variables
 LVLS <- c("Under $15,000", "$15,000 to $24,999", "$25,000 to $34,999", "$35,000 to $49,999", "$50,000 to $74,999",
@@ -20,12 +24,33 @@ df_home <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/ti
 df_inc_dist <- df_inc_dist %>% preprocess_inc() %>% handle_missings_inc(method="bfill")
 df_home <- df_home %>% preprocess_home() %>% handle_missings_home(method="bfill", implicits=TRUE)
 by <- join_by(year, race_coarse == race)
-df_all <- df_inc_dist %>% full_join(df_home, by=by) #by=c("year","race_coarse"))
+df_all <- df_inc_dist %>% full_join(df_home, by=by) 
+
+df_lm <- avg_slope(df_all)
+all_races <- subset(df_all, race=="All Races")
+overall_lm <- lm(income_mean ~ year , data=all_races)
 
 
 ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
   geom_line(size=1.5) + 
   labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
-  ylim(0, NA) + scale_y_continuous(labels = comma, limits = c(0, NA))
+  ylim(0, NA) + scale_y_continuous(labels = comma, limits = c(0, NA)) +
+  geom_abline(data = df_lm, 
+              aes(intercept = intercept, slope = slope, color = race))
+
+# plot pcts
+df_inc_above <- df_all %>% income_above(income_level="$15,000 to $24,999")
+ggplot(df_inc_above, aes(x = year, y = higher_thresh, color = race)) +
+  geom_line(size=1.5) + 
+  labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
+  ylim(0, 100) + scale_y_continuous(labels = comma, limits = c(0, 100)) 
+
+
+
+d <- get_ts(df_all)
+check_log_returns(d)
+estim_b_scholes(df_all) %>% arrange(desc(sigma2))
+
+
 
 

@@ -1,3 +1,4 @@
+library(tidyverse)
 # defines income_bracket as an ordered factor
 # extracts additional race_coars column matching only white, black and hispanic for later join with home.csv data
 preprocess_inc <- function(df)
@@ -44,5 +45,16 @@ handle_missings_home <- function(df, method="identity", implicits=FALSE)
   missings_summary(df)
   return(df)
 }
+
+get_ts <- function(df)
+{
+  df <- df %>% group_by(year,race) %>% 
+    summarize(yearly_mean=first(income_mean), yearly_median=first(income_median), yearly_number=first(number)) %>% 
+    ungroup() 
+  return(df)
+  #return(spread(df, key=race, value=yearly_mean))
+}
+
+
 
 
