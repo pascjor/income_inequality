@@ -31,3 +31,19 @@ yearly_returns <- function(df, colname, log=FALSE)
   if (log) {df$return <- log(df$return)} # TODO: handle first value (Inf)
   return(df)
 }
+
+# takes the vector of brackets and computes the midpoints as a numeric variable
+# For the extreme interval it takes the lower end and adds "add" to it.
+extract_midpoint <- function(brackets, add=0) {
+  brackets <- str_replace_all(brackets, ",", "") %>% 
+    str_replace_all("Under", "$0 ") # replace "Under $15000" with "$0 to $15000"
+  lwr_upper <- str_extract_all(brackets, "\\d+")
+  midpoints <- lapply(lwr_upper, function(x) {
+    if (length(x) == 2) {
+      mean(as.numeric(x))  
+    } else {
+      as.numeric(x) + add  # Keep single-number entries as is
+    }
+  })
+  return(unlist(midpoints))
+}

@@ -1,7 +1,8 @@
+### import libraries and source project files used for computation
 library(tidyverse)
 library(scales)
-library(stringr)
-library(broom)
+library(RColorBrewer)
+library(DescTools)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
@@ -10,33 +11,133 @@ source(".//stats.R")
 source(".//transforms.R")
 source(".//model.R")
 
-# define some global variables
+
+### read data sources and join
+path_base <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/"
+df_inc_dist <- readr::read_csv(paste(path_base, 'income_distribution.csv', sep=""))
+df_home <- readr::read_csv(paste(path_base, 'home_owner.csv', sep=""))
+
+
+### define some global variables
 LVLS <- c("Under $15,000", "$15,000 to $24,999", "$25,000 to $34,999", "$35,000 to $49,999", "$50,000 to $74,999",
          "$75,000 to $99,999", "$100,000 to $149,999", "$150,000 to $199,999", "$200,000 and over")
 
 REF_LVL <- "$100,000 to $149,999"
 
-# read data (save?)
-df_inc_dist <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/income_distribution.csv')
-df_home <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/home_owner.csv')
+#colors assigned to races for plotting
+color_map <- c(
+  "All Races" = "#7f8c8d",           # Neutral grey
+  "White Alone" = "#2980b9",          # Bright blue
+  "Black Alone" = "#2c3e50",          # Dark blue-grey
+  "White Alone, Not Hispanic" = "#5dade2",  # Sky blue
+  "Hispanic (Any Race)" = "#d35400",  # Dark orange
+  "Asian Alone" = "#1e8449",          # Dark green
+  "Black Alone or in Combination" = "#34495e",  # Slate blue
+  "Asian Alone or in Combination" = "#2ecc71"   # Bright green
+)
 
-# preprocess and deal with missings
+labels = c("All Races" = "All",
+           "White Alone" = "White",
+           "Black Alone" = "Black",
+           "White Alone, Not Hispanic" = "White (Non-Hispanic)",
+           "Hispanic (Any Race)" = "Hispanic",
+           "Asian Alone" = "Asian",
+           "Black Alone or in Combination" = "Black (Combination)",
+           "Asian Alone or in Combination" = "Asian (Combination)")
+
+### preprocess and deal with missings
 df_inc_dist <- df_inc_dist %>% preprocess_inc() %>% handle_missings_inc(method="bfill")
 df_home <- df_home %>% preprocess_home() %>% handle_missings_home(method="bfill", implicits=TRUE)
+
+# join with home data 
+# TODO: use home data for further analysis
 by <- join_by(year, race_coarse == race)
 df_all <- df_inc_dist %>% full_join(df_home, by=by) 
 
+########################################################
+# (1) Create a plot of income over time by race and add simple trend lines
 df_lm <- avg_slope(df_all)
-all_races <- subset(df_all, race=="All Races")
-overall_lm <- lm(income_mean ~ year , data=all_races)
+# all_races <- subset(df_all, race=="All Races")
+# overall_lm <- lm(income_mean ~ year , data=all_races) # get the overall trend coefficient
 
+########################################################
+# Create and save plot of mean income over time by race
+jpeg("income_by_year_race.jpg", width = 1920, height = 1080, res = 300)
 
 ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
-  geom_line(size=1.5) + 
-  labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
-  ylim(0, NA) + scale_y_continuous(labels = comma, limits = c(0, NA)) +
+  geom_line(size=1.2) + 
+  labs(title = "Einkommensentwicklung nach Ethnizität", x = "Jahr", 
+       y = "Mittleres Einkommen ($)", color="Ethnizität") +
+  scale_y_continuous(labels = comma, limits = c(0, NA)) +
+  scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
   geom_abline(data = df_lm, 
-              aes(intercept = intercept, slope = slope, color = race))
+              aes(intercept = intercept, slope = slope, color = race), 
+              alpha=0.6, size=1.2, linetype="dashed") + 
+  # add dates of some major crisis (lehmann, 9/11, oil)
+  # TODO: highlight with arrows
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", size = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", size = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", size = 1) +
+  scale_color_manual(values = color_map,
+                     labels = labels) 
+
+dev.off() # plot end
+########################################################
+
+
+# (2) Measure income inequality within each race and plot over time
+# Use midpoints of the bracket intervals
+df_all$mid <- extract_midpoint(df_all$income_bracket, add = 100000)
+df_gr_ordered <- df_all %>% group_by(year, race) %>% arrange(mid)
+df_gini <- df_gr_ordered %>% summarize(gini_coef=Gini(mid, income_distribution)) %>% 
+  filter(race %in% c("Black Alone", "White Alone", "Asian Alone", "Hispanic (Any Race)"))
+
+########################################################
+# Create and save plot of gini-coefficient over time by race
+jpeg("gini.jpg", width = 1920, height = 1080, res = 300)
+
+ggplot(df_gini, aes(x = year, y = gini_coef, color = race, linetype = race)) +
+  geom_line(size=1.2) + 
+  labs(title = "Trend des Gini-Koeffizienten nach Ethnizität", x = "Jahr", 
+       y = "Gini-Koeffizient", color="Ethnizität") +
+  ylim(0, 1) +
+  scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", size = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", size = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", size = 1) +
+  scale_color_manual(values = color_map,
+                   labels = labels) +
+  guides(
+    color = guide_legend(title = "Ethnizität"),
+    linetype = "none"  
+  )
+
+dev.off() # plot end
+##########################################################
+
+
+# (3) Estimate a simple "black-scholes-type"-model for income over time
+d <- get_ts(df_all) # get rid of repetitions induced by joining with the income_distribution
+check_log_returns(d) # compute yearly log returns and check for i.i.d normality assumptions
+estim_b_scholes(df_all) %>% arrange(desc(sigma2))
+
+##########################################################
+
+# (4) Percentage exceeding predefined income_level
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # plot pcts
 df_inc_above <- df_all %>% income_above(income_level="$15,000 to $24,999")
