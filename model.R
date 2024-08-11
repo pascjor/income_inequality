@@ -1,8 +1,12 @@
+# Model trajectory with conventional "Black-Scholes"-type model
+# -> Compute log returns and evaluate i.i.d assumption as well as normality
+
 library(tidyverse)
 library(moments)
 library(tseries)
-# Model trajectory with conventional "Black-Scholes"-type model
-# -> Compute log returns and evaluate i.i.d assumption as well as normality
+
+source(".//transforms.R") # need yearly_returns definition
+
 
 check_log_returns <- function(df)
 {

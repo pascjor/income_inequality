@@ -1,3 +1,9 @@
+### Contains functions for the computation of commonly used simple statistics within each group
+### a) get_acf -> compute autocorrelations (only used in an exploratory files on GARCH-models - 
+### not added to repo cause incomplete); b) avg_slope -> compute regression line for each group (used in 
+### plots)
+library(broom)
+
 library(tidyverse)
 # Compute the autocorrelation function w.r.t. variable var for race=group
 # If difference=TRUE: First difference the series then compute the acf
@@ -15,7 +21,6 @@ get_acf <- function(df, group, var, difference=FALSE)
 # Returns a dataframe containing race and the estimated regression parameters for each race
 avg_slope <- function(df)
 {
-  #df_all %>% group_by(race) %>% summarize(slope=coef(lm(income_mean ~ year, data=.)).[[)
   df_lm <- df %>%
     group_by(race) %>%
     do(tidy(lm(income_mean ~ year, data = .))) %>%  #  I(year - 1990)

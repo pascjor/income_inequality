@@ -1,10 +1,13 @@
+### Compute additional variables from the raw data - useful for further analysis steps
+
 library(tidyverse)
-# compute the pct of population with income above the given income_level (for each year/race combination)
+# compute the pct of population with income above the given income_level 
+# (for each year/race combination)
 income_above <- function(df, income_level)
 {
   if (!(income_level %in% LVLS)){stop("Invalid income level")}
   newcol <- paste("higher",income_level)
-  df[newcol] <- ifelse(df$income_bracket>income_level,1,0)
+  df[newcol] <- ifelse(df$income_bracket > income_level,1,0)
   df = df %>% group_by(year, race) %>% 
     summarize(higher_thresh = sum(income_distribution*.data[[newcol]]))
   return(df %>% ungroup())
@@ -42,7 +45,7 @@ extract_midpoint <- function(brackets, add=0) {
     if (length(x) == 2) {
       mean(as.numeric(x))  
     } else {
-      as.numeric(x) + add  # Keep single-number entries as is
+      as.numeric(x) + add  
     }
   })
   return(unlist(midpoints))

@@ -10,6 +10,7 @@ source(".//helper.R")
 source(".//stats.R")
 source(".//transforms.R")
 source(".//model.R")
+source(".//graphics.R")
 
 
 ### read data sources and join
@@ -22,7 +23,7 @@ df_home <- readr::read_csv(paste(path_base, 'home_owner.csv', sep=""))
 LVLS <- c("Under $15,000", "$15,000 to $24,999", "$25,000 to $34,999", "$35,000 to $49,999", "$50,000 to $74,999",
          "$75,000 to $99,999", "$100,000 to $149,999", "$150,000 to $199,999", "$200,000 and over")
 
-REF_LVL <- "$100,000 to $149,999"
+REF_LVL <- "$150,000 to $199,999"
 
 #colors assigned to races for plotting
 color_map <- c(
@@ -36,6 +37,7 @@ color_map <- c(
   "Asian Alone or in Combination" = "#2ecc71"   # Bright green
 )
 
+# define shorter labels to use for plots
 labels = c("All Races" = "All",
            "White Alone" = "White",
            "Black Alone" = "Black",
@@ -55,29 +57,32 @@ by <- join_by(year, race_coarse == race)
 df_all <- df_inc_dist %>% full_join(df_home, by=by) 
 
 ########################################################
+
+
+########################################################
 # (1) Create a plot of income over time by race and add simple trend lines
+
 df_lm <- avg_slope(df_all)
 # all_races <- subset(df_all, race=="All Races")
 # overall_lm <- lm(income_mean ~ year , data=all_races) # get the overall trend coefficient
 
-########################################################
 # Create and save plot of mean income over time by race
 jpeg("income_by_year_race.jpg", width = 1920, height = 1080, res = 300)
 
 ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
-  geom_line(size=1.2) + 
+  geom_line(linewidth=1.2) + 
   labs(title = "Einkommensentwicklung nach Ethnizität", x = "Jahr", 
        y = "Mittleres Einkommen ($)", color="Ethnizität") +
   scale_y_continuous(labels = comma, limits = c(0, NA)) +
   scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
   geom_abline(data = df_lm, 
               aes(intercept = intercept, slope = slope, color = race), 
-              alpha=0.6, size=1.2, linetype="dashed") + 
+              alpha=0.6, linewidth=1.2, linetype="dashed") + 
   # add dates of some major crisis (lehmann, 9/11, oil)
   # TODO: highlight with arrows
-  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", size = 1) + 
-  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", size = 1) +
-  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", size = 1) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", linewidth = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
   scale_color_manual(values = color_map,
                      labels = labels) 
 
@@ -85,26 +90,26 @@ dev.off() # plot end
 ########################################################
 
 
+########################################################
 # (2) Measure income inequality within each race and plot over time
 # Use midpoints of the bracket intervals
 df_all$mid <- extract_midpoint(df_all$income_bracket, add = 100000)
 df_gr_ordered <- df_all %>% group_by(year, race) %>% arrange(mid)
-df_gini <- df_gr_ordered %>% summarize(gini_coef=Gini(mid, income_distribution)) %>% 
+df_gini <- df_gr_ordered %>% summarize(gini_coef=Gini(mid, income_distribution), .groups="drop") %>% 
   filter(race %in% c("Black Alone", "White Alone", "Asian Alone", "Hispanic (Any Race)"))
 
-########################################################
 # Create and save plot of gini-coefficient over time by race
 jpeg("gini.jpg", width = 1920, height = 1080, res = 300)
 
 ggplot(df_gini, aes(x = year, y = gini_coef, color = race, linetype = race)) +
-  geom_line(size=1.2) + 
+  geom_line(linewidth=1.2) + 
   labs(title = "Trend des Gini-Koeffizienten nach Ethnizität", x = "Jahr", 
        y = "Gini-Koeffizient", color="Ethnizität") +
   ylim(0, 1) +
   scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
-  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", size = 1) + 
-  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", size = 1) +
-  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", size = 1) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", linewidth = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
   scale_color_manual(values = color_map,
                    labels = labels) +
   guides(
@@ -116,42 +121,33 @@ dev.off() # plot end
 ##########################################################
 
 
+##########################################################
 # (3) Estimate a simple "black-scholes-type"-model for income over time
 d <- get_ts(df_all) # get rid of repetitions induced by joining with the income_distribution
 check_log_returns(d) # compute yearly log returns and check for i.i.d normality assumptions
-estim_b_scholes(df_all) %>% arrange(desc(sigma2))
+model_estimates <- estim_b_scholes(df_all) %>% arrange(desc(sigma2))
+
+# save table for presentation
+save_as_png(model_estimates)
+##########################################################
+
 
 ##########################################################
 
 # (4) Percentage exceeding predefined income_level
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# plot pcts
-df_inc_above <- df_all %>% income_above(income_level="$15,000 to $24,999")
+df_inc_above <- df_all %>% income_above(income_level=REF_LVL)
 ggplot(df_inc_above, aes(x = year, y = higher_thresh, color = race)) +
-  geom_line(size=1.5) + 
-  labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
-  ylim(0, 100) + scale_y_continuous(labels = comma, limits = c(0, 100)) 
-
-
-
-d <- get_ts(df_all)
-check_log_returns(d)
-estim_b_scholes(df_all) %>% arrange(desc(sigma2))
-
+  geom_line(linewidth=1.5) + 
+  labs(title = "Entwicklung des Anteils mit Einkommen > 200 000 $", x = "Jahr", 
+       y = "Anteil mit Einkommen > 200 000 $", color="Ethnizität") +
+  #labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
+  scale_y_continuous(labels = comma, limits = c(0, 25)) +
+  scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", linewidth = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
+  scale_color_manual(values = color_map,
+                     labels = labels) 
 
 
 
