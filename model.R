@@ -5,11 +5,19 @@ library(tidyverse)
 library(moments)
 library(tseries)
 
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
 source(".//transforms.R") # need yearly_returns definition
 
-
+# Computes statistical properties of log returns (i.e. skewness, kurtosis, autocorrelations)
+# Inspection of these are prerequisite for black-scholes-type model to fit well
+# Returns a dataframe with skewness, kurtosis coefficients, p-values and autocorrelations for
+# each race
 check_log_returns <- function(df)
 {
+  # If the original data have not been freed of duplicated entries -> compute the proper
+  # time series
+  if(!("yearly_mean" %in% colnames(df))) {df <- get_ts(df)}
   cats <- unique(df$race)
   K <- length(cats)
   skews <- vector("double", K) # skewness coefficients for each group
@@ -47,6 +55,8 @@ check_log_returns <- function(df)
   return(d_normality)
 }
 
+# Provides estimates of the mean and variance of log-returns
+# Returns a dataframe containing each race and the respective parameter estimates
 estim_b_scholes <- function(df)
 {
   # Compute by race: estimates of normal distribution for log returns

@@ -12,7 +12,8 @@ get_acf <- function(df, group, var, difference=FALSE)
   df <- df %>% filter(race==group) %>% arrange(year)
   if(difference)
   {
-    df <- df %>% mutate(diff=.data[[var]]-lag(.data[[var]])) %>% filter(!(year==min(year)))
+    df <- df %>% mutate(diff=.data[[var]]-lag(.data[[var]])) %>% 
+      filter(!(year==min(year)))
   }
   return(acf(df[,ifelse(difference, "diff",var)], type="correlation"))
 }
@@ -23,7 +24,7 @@ avg_slope <- function(df)
 {
   df_lm <- df %>%
     group_by(race) %>%
-    do(tidy(lm(income_mean ~ year, data = .))) %>%  #  I(year - 1990)
+    do(tidy(lm(income_mean ~ year, data = .))) %>%  
     ungroup() %>%
     select(race, term, estimate) %>%
     pivot_wider(names_from = term, values_from = estimate)

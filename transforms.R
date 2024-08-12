@@ -3,6 +3,7 @@
 library(tidyverse)
 # compute the pct of population with income above the given income_level 
 # (for each year/race combination)
+# Returns a dataframe containing the pct of population exceeding that income lvl by race
 income_above <- function(df, income_level)
 {
   if (!(income_level %in% LVLS)){stop("Invalid income level")}
@@ -14,6 +15,7 @@ income_above <- function(df, income_level)
 }
 
 # alternative modeling approach: Use income ratios relative to a fixed reference group
+# Returns a new dataframe where the original is extended by a ratio column 
 normalized_ratios <- function(df, reference_stat="mean", reference_group="White Alone")
 {
   ref_col  <- paste("income", reference_stat, sep="_")

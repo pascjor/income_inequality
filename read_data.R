@@ -56,6 +56,12 @@ df_home <- df_home %>% preprocess_home() %>% handle_missings_home(method="bfill"
 by <- join_by(year, race_coarse == race)
 df_all <- df_inc_dist %>% full_join(df_home, by=by) 
 
+# Get an impression on yearly growth rates by race -> almost no difference 1-2%
+options(pillar.sigfig = 4)
+get_ts(df_all) %>% group_by(race) %>% 
+  summarize(gmean=Gmean(yearly_mean/lag(yearly_mean), na.rm=TRUE)) %>% arrange(desc(gmean))
+
+
 ########################################################
 
 
@@ -69,7 +75,7 @@ df_lm <- avg_slope(df_all)
 # Create and save plot of mean income over time by race
 jpeg("income_by_year_race.jpg", width = 1920, height = 1080, res = 300)
 
-ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
+plot_inc <- ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
   geom_line(linewidth=1.2) + 
   labs(title = "Einkommensentwicklung nach Ethnizität", x = "Jahr", 
        y = "Mittleres Einkommen ($)", color="Ethnizität") +
@@ -86,6 +92,7 @@ ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
   scale_color_manual(values = color_map,
                      labels = labels) 
 
+print(plot_inc)
 dev.off() # plot end
 ########################################################
 
@@ -101,7 +108,7 @@ df_gini <- df_gr_ordered %>% summarize(gini_coef=Gini(mid, income_distribution),
 # Create and save plot of gini-coefficient over time by race
 jpeg("gini.jpg", width = 1920, height = 1080, res = 300)
 
-ggplot(df_gini, aes(x = year, y = gini_coef, color = race, linetype = race)) +
+plot_gini <- ggplot(df_gini, aes(x = year, y = gini_coef, color = race, linetype = race)) +
   geom_line(linewidth=1.2) + 
   labs(title = "Trend des Gini-Koeffizienten nach Ethnizität", x = "Jahr", 
        y = "Gini-Koeffizient", color="Ethnizität") +
@@ -117,14 +124,14 @@ ggplot(df_gini, aes(x = year, y = gini_coef, color = race, linetype = race)) +
     linetype = "none"  
   )
 
+print(plot_gini)
 dev.off() # plot end
 ##########################################################
 
 
 ##########################################################
 # (3) Estimate a simple "black-scholes-type"-model for income over time
-d <- get_ts(df_all) # get rid of repetitions induced by joining with the income_distribution
-check_log_returns(d) # compute yearly log returns and check for i.i.d normality assumptions
+check_log_returns(df_all) # compute yearly log returns and check for i.i.d normality assumptions
 model_estimates <- estim_b_scholes(df_all) %>% arrange(desc(sigma2))
 
 # save table for presentation
@@ -135,11 +142,14 @@ save_as_png(model_estimates)
 ##########################################################
 
 # (4) Percentage exceeding predefined income_level
+jpeg("pct_richest.jpg", width = 1920, height = 1080, res = 300)
+
 df_inc_above <- df_all %>% income_above(income_level=REF_LVL)
-ggplot(df_inc_above, aes(x = year, y = higher_thresh, color = race)) +
+
+plot_inc_above <- ggplot(df_inc_above, aes(x = year, y = higher_thresh, color = race)) +
   geom_line(linewidth=1.5) + 
-  labs(title = "Entwicklung des Anteils mit Einkommen > 200 000 $", x = "Jahr", 
-       y = "Anteil mit Einkommen > 200 000 $", color="Ethnizität") +
+  labs(title = "Entwicklung des Anteils mit Einkommen mehr als 200000 $", x = "Jahr", 
+       y = "Anteil (in %)", color="Ethnizität") +
   #labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
   scale_y_continuous(labels = comma, limits = c(0, 25)) +
   scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
@@ -148,6 +158,11 @@ ggplot(df_inc_above, aes(x = year, y = higher_thresh, color = race)) +
   geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
   scale_color_manual(values = color_map,
                      labels = labels) 
+print(plot_inc_above)
+dev.off()
+
+
+
 
 
 
