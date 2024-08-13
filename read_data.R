@@ -54,7 +54,8 @@ df_home <- df_home %>% preprocess_home() %>% handle_missings_home(method="bfill"
 # join with home data 
 # TODO: use home data for further analysis
 by <- join_by(year, race_coarse == race)
-df_all <- df_inc_dist %>% full_join(df_home, by=by) 
+df_all <- df_inc_dist %>% full_join(df_home, by=by) %>% 
+  filter(race %in% c("All Races", "White Alone", "Black Alone", "Hispanic (Any Race)", "Asian Alone"))
 
 # Get an impression on yearly growth rates by race -> almost no difference 1-2%
 options(pillar.sigfig = 4)
@@ -86,9 +87,9 @@ plot_inc <- ggplot(df_all, aes(x = year, y = income_mean, color = race)) +
               alpha=0.6, linewidth=1.2, linetype="dashed") + 
   # add dates of some major crisis (lehmann, 9/11, oil)
   # TODO: highlight with arrows
-  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", linewidth = 1) + 
-  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", linewidth = 1) +
-  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "#8B0000", linewidth = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "#8B0000", linewidth = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "#8B0000", linewidth = 1) +
   scale_color_manual(values = color_map,
                      labels = labels) 
 
@@ -114,9 +115,9 @@ plot_gini <- ggplot(df_gini, aes(x = year, y = gini_coef, color = race, linetype
        y = "Gini-Koeffizient", color="Ethnizität") +
   ylim(0, 1) +
   scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
-  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", linewidth = 1) + 
-  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", linewidth = 1) +
-  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "#8B0000", linewidth = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "#8B0000", linewidth = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "#8B0000", linewidth = 1) +
   scale_color_manual(values = color_map,
                    labels = labels) +
   guides(
@@ -134,8 +135,10 @@ dev.off() # plot end
 check_log_returns(df_all) # compute yearly log returns and check for i.i.d normality assumptions
 model_estimates <- estim_b_scholes(df_all) %>% arrange(desc(sigma2))
 
+# rename races before:
+model_estimates <- model_estimates %>% mutate(race = str_extract(race, "^[^\\s]+"))
 # save table for presentation
-save_as_png(model_estimates)
+save_as_png(model_estimates %>% rename(Asian=))
 ##########################################################
 
 
@@ -148,14 +151,14 @@ df_inc_above <- df_all %>% income_above(income_level=REF_LVL)
 
 plot_inc_above <- ggplot(df_inc_above, aes(x = year, y = higher_thresh, color = race)) +
   geom_line(linewidth=1.5) + 
-  labs(title = "Entwicklung des Anteils mit Einkommen mehr als 200000 $", x = "Jahr", 
+  labs(title = "Entwicklung des Anteils mit Einkommen mehr als 200,000 $", x = "Jahr", 
        y = "Anteil (in %)", color="Ethnizität") +
   #labs(title = "Mean income by Race and Year", x = "Year", y = "Mean income") +
   scale_y_continuous(labels = comma, limits = c(0, 25)) +
   scale_x_continuous(breaks = seq(1970, 2020, by = 10)) +
-  geom_vline(xintercept = 2009, linetype = "dotted", color = "red", linewidth = 1) + 
-  geom_vline(xintercept = 2001, linetype = "dotted", color = "red", linewidth = 1) +
-  geom_vline(xintercept = 1973, linetype = "dotted", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 2009, linetype = "dotted", color = "#8B0000", linewidth = 1) + 
+  geom_vline(xintercept = 2001, linetype = "dotted", color = "#8B0000", linewidth = 1) +
+  geom_vline(xintercept = 1973, linetype = "dotted", color = "#8B0000", linewidth = 1) +
   scale_color_manual(values = color_map,
                      labels = labels) 
 print(plot_inc_above)
